@@ -11,8 +11,6 @@ services:
       POSTGRES_PASSWORD: DBPasswordSecure2026
     volumes:
       - evolution_db_data:/var/lib/postgresql/data
-    # No exponemos el puerto 5432 al VPS para evitar cualquier conflicto con tu PostgreSQL existente.
-    # Solo será accesible para el contenedor de la API dentro de la red interna de Docker.
 
   evolution_api:
     image: evoapicloud/evolution-api:latest
@@ -27,7 +25,10 @@ services:
       # Configuración de Base de Datos
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://coecaribe_user:DBPasswordSecure2026@evolution_db:5432/evolution?schema=public
-      # Deshabilitar telemetría y cosas innecesarias
+      # Configuración de Caché (Desactivar Redis y usar almacenamiento local de la VPS)
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      # Deshabilitar telemetría y temporales
       - DEL_INSTANCE_TEMP_FOLDER=true
     depends_on:
       - evolution_db
