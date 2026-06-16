@@ -145,7 +145,7 @@ function sendTelegramStatus(chatId) {
 function searchAgentMemory(chatId, query) {
   sendTelegramMessage(chatId, `🧠 <i>Buscando en la memoria vectorial: "${query}"...</i>`);
   
-  exec(`npx @claude-flow/cli@latest memory search --query "${query}"`, (error, stdout, stderr) => {
+  exec(`npx -y @claude-flow/cli@latest memory search --query "${query}"`, (error, stdout, stderr) => {
     let responseText = `🔍 <b>Resultados de Memoria:</b>\n\n`;
     if (stdout && stdout.trim() !== '') {
       responseText += `<pre>${stdout.substring(0, 3000)}</pre>`;
@@ -158,7 +158,7 @@ function searchAgentMemory(chatId, query) {
 
 function executeAgentTask(chatId, task) {
   // Ejecutar el enrutador de agentes de Ruflo
-  exec(`npx @claude-flow/cli@latest hooks route --task "${task}"`, (error, stdout, stderr) => {
+  exec(`npx -y @claude-flow/cli@latest hooks route --task "${task}"`, (error, stdout, stderr) => {
     let responseText = `🤖 <b>Respuesta de los Agentes:</b>\n\n`;
     if (stdout) {
       responseText += stdout;
