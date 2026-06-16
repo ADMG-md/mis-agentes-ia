@@ -91,8 +91,9 @@ Usa los siguientes comandos para controlar la VPS:
   else if (text.startsWith('/ask ')) {
     const question = text.replace('/ask ', '');
     sendTelegramMessage(chatId, '🔍 <i>Consultando a los agentes... (Esto puede tomar unos segundos)</i>');
-    executeAgentTask(chatId, `Question: ${question}`);
+    executeAskQuery(chatId, question);
   } 
+
   else if (text.startsWith('/memory ')) {
     const query = text.replace('/memory ', '');
     searchAgentMemory(chatId, query);
@@ -174,5 +175,24 @@ function executeAgentTask(chatId, task) {
     }
     
     sendTelegramMessage(chatId, responseText);
+  });
+}
+
+function executeAskQuery(chatId, question) {
+  // Escapar comillas dobles para evitar problemas en el comando exec
+  const escapedQuestion = question.replace(/"/g, '\\"');
+  
+  exec(`node ${path.join(__dirname, 'ask_agent.js')} "${escapedQuestion}"`, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Error al ejecutar ask_agent:', error);
+      sendTelegramMessage(chatId, `❌ Ocurrió un error al procesar tu pregunta:\n<pre>${stderr || error.message}</pre>`);
+      return;
+    }
+    
+    if (stdout && stdout.trim() !== '') {
+      sendTelegramMessage(chatId, stdout.trim());
+    } else {
+      sendTelegramMessage(chatId, '🤖 Los agentes no pudieron formular una respuesta.');
+    }
   });
 }
