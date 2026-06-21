@@ -64,8 +64,20 @@ else
   echo -e "${GREEN}El archivo .env ya existía, se omitió su sobreescritura.${NC}"
 fi
 
-# 5. Generar plantilla de configuración para Nginx
-echo -e "${YELLOW}[4/4] Generando plantilla para bloque de servidor Nginx...${NC}"
+# 5. Instalar dependencias de Node.js y compilar servidores MCP de Growth Marketing
+echo -e "${YELLOW}[4/5] Instalando dependencias del monorepo y compilando servidores MCP...${NC}"
+cd "$APP_DIR"
+if command -v npm &> /dev/null; then
+  # Correr con privilegios de usuario para evitar problemas de permisos con better-sqlite3
+  sudo -u "$REAL_USER" npm run bootstrap
+  sudo -u "$REAL_USER" npm run build
+  echo -e "${GREEN}Dependencias de Node.js y compilación de TypeScript completadas con éxito.${NC}"
+else
+  echo -e "${RED}Advertencia: 'npm' no está instalado. Asegúrate de instalar Node.js >= 20 antes de continuar.${NC}"
+fi
+
+# 6. Generar plantilla de configuración para Nginx
+echo -e "${YELLOW}[5/5] Generando plantilla para bloque de servidor Nginx...${NC}"
 NGINX_CONF="/etc/nginx/sites-available/coe-caribe"
 
 if [ ! -f "$NGINX_CONF" ]; then
@@ -74,8 +86,9 @@ server {
     listen 80;
     server_name tu-dominio.com www.tu-dominio.com;
 
+    # Nginx Proxy para el Dashboard Web (puerto 3030)
     location / {
-        proxy_pass http://127.0.0.1:3010;
+        proxy_pass http://127.0.0.1:3030;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -96,8 +109,14 @@ else
 fi
 
 echo -e "\n${GREEN}=== Configuración optimizada de la VPS completada con éxito ===${NC}\n"
-echo -e "${BLUE}Comandos para arrancar servicios en la VPS:${NC}"
-echo -e "1. Iniciar los agentes en segundo plano con tu PM2 existente:"
-echo -e "   ${GREEN}pm2 start npx --name \"ruflo-mcp\" -- -y ruflo@latest mcp start${NC}"
-echo -e "2. Levantar la API de WhatsApp (Evolution API) en puerto 8080:"
+echo -e "${BLUE}Comandos para arrancar los servicios en segundo plano con PM2:${NC}"
+echo -e "1. Iniciar el puente de Telegram (Control del bot conversacional):"
+echo -e "   ${GREEN}pm2 start scripts/telegram_agent_bridge.js --name \"rrss-telegram-bridge\"${NC}"
+echo -e "2. Iniciar el Dashboard visual de Growth Marketing (Puerto 3030):"
+echo -e "   ${GREEN}pm2 start npm --name \"rrss-dashboard\" -- run start:dashboard${NC}"
+echo -e "3. Configurar la escucha social (Social Listening) para ejecutarse cada 30 minutos:"
+echo -e "   ${GREEN}pm2 start scripts/find_leads.js --name \"rrss-social-listening\" --cron \"*/30 * * * *\" --no-autorestart${NC}"
+echo -e "4. Levantar la API de WhatsApp (Evolution API) en puerto 8080 (Docker):"
 echo -e "   ${GREEN}sudo docker run -d --name evolution_api --restart always -p 8080:8080 -e API_KEY=TuClaveSecretaWhatsApp123 -v evolution_instances:/evolution/instances atendare/evolution-api:latest${NC}"
+echo -e "5. Iniciar Ruflo MCP (Soporte Swarm/CLI):"
+echo -e "   ${GREEN}pm2 start npx --name \"ruflo-mcp\" -- -y ruflo@latest mcp start${NC}"

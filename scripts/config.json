@@ -1,0 +1,21 @@
+{
+  "keywords": [
+    "resistencia a la insulina",
+    "metformina",
+    "prediabetes",
+    "ozempic",
+    "bajar de peso",
+    "sindrome metabolico",
+    "tirzepatida",
+    "semaglutida"
+  ],
+  "subreddits": [
+    "insulinresistance",
+    "diabetes",
+    "keto",
+    "weightloss"
+  ],
+  "minRelevanceScore": 75,
+  "scanIntervalMs": 1800000,
+  "maxResultsPerSearch": 10
+}

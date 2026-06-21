@@ -79,9 +79,12 @@ function handleMessage(message) {
 Usa los siguientes comandos para controlar la VPS:
 
 🔸 <code>/status</code> - Estado del servidor (PM2, Docker).
-🔸 <code>/ask [pregunta]</code> - Consultar a los agentes de IA.
+🔸 <code>/ask [pregunta]</code> - Consultar a los agentes de IA (clínico y marketing).
 🔸 <code>/memory [busqueda]</code> - Buscar en la memoria vectorial.
 🔸 <code>/run [tarea]</code> - Ejecutar un pipeline de agentes.
+🔸 <code>/leads</code> - Escanear leads y escucha social en tiempo real.
+🔸 <code>/posts</code> - Ver cola de publicaciones (base de datos local).
+🔸 <code>/ads</code> - Ver auditoría rápida de campañas de anuncios.
     `;
     sendTelegramMessage(chatId, helpText);
   } 
@@ -93,7 +96,6 @@ Usa los siguientes comandos para controlar la VPS:
     sendTelegramMessage(chatId, '🔍 <i>Consultando a los agentes... (Esto puede tomar unos segundos)</i>');
     executeAskQuery(chatId, question);
   } 
-
   else if (text.startsWith('/memory ')) {
     const query = text.replace('/memory ', '');
     searchAgentMemory(chatId, query);
@@ -102,10 +104,72 @@ Usa los siguientes comandos para controlar la VPS:
     const task = text.replace('/run ', '');
     sendTelegramMessage(chatId, '⚙️ <i>Ejecutando pipeline del Swarm...</i>');
     executeAgentTask(chatId, task);
-  } 
+  }
+  else if (text.startsWith('/leads')) {
+    sendTelegramMessage(chatId, '🛰️ <i>Iniciando escucha de redes sociales y clasificación de leads en tiempo real...</i>');
+    exec(`node ${path.join(__dirname, 'find_leads.js')}`, (error, stdout, stderr) => {
+      if (error) {
+        sendTelegramMessage(chatId, `❌ Error al ejecutar escucha social:\n<pre>${error.message}</pre>`);
+        return;
+      }
+      sendTelegramMessage(chatId, '✅ <i>Proceso de escucha social finalizado. Si se encontraron leads calificados relevantes, se habrán enviado arriba.</i>');
+    });
+  }
+  else if (text.startsWith('/posts')) {
+    listPosts(chatId);
+  }
+  else if (text.startsWith('/ads')) {
+    sendTelegramMessage(chatId, '📊 <i>Consultando estado de campañas y presupuestos de anuncios (puede tomar unos segundos)...</i>');
+    executeAskQuery(chatId, 'Haz una auditoría rápida de mis campañas publicitarias activas en Meta/Google y el estado de mi presupuesto (Budget Guard), mostrando los datos en una tabla resumida o lista con KPIs básicos.');
+  }
   else {
     // Respuesta por defecto si escriben algo sin comando
     sendTelegramMessage(chatId, '❓ Comando no reconocido. Escribe /help para ver las opciones.');
+  }
+}
+
+function listPosts(chatId) {
+  try {
+    const Database = require('better-sqlite3');
+    const dbPath = path.join(__dirname, '..', 'rrssagente.db');
+    if (!fs.existsSync(dbPath)) {
+      sendTelegramMessage(chatId, '⚠️ Base de datos <code>rrssagente.db</code> no encontrada en la raíz.');
+      return;
+    }
+    const db = new Database(dbPath);
+    const rows = db.prepare(`
+      SELECT id, platforms, accountType, status, scheduledAt 
+      FROM posts 
+      ORDER BY 
+        CASE status 
+          WHEN 'scheduled' THEN 1 
+          WHEN 'draft' THEN 2 
+          ELSE 3 
+        END,
+        scheduledAt ASC 
+      LIMIT 10
+    `).all();
+    
+    if (rows.length === 0) {
+      sendTelegramMessage(chatId, '📅 <b>Cola de Publicaciones:</b>\n\nNo hay publicaciones registradas en la base de datos.');
+      db.close();
+      return;
+    }
+    
+    let responseText = '📅 <b>Cola de Publicaciones (Últimas 10):</b>\n\n';
+    rows.forEach(row => {
+      const scheduledText = row.scheduledAt ? `⏰ <code>${row.scheduledAt}</code>` : 'No programado';
+      const statusEmoji = row.status === 'scheduled' ? '🟢' : row.status === 'published' ? '🔵' : '🟡';
+      responseText += `${statusEmoji} <b>ID:</b> <code>${row.id}</code>\n` +
+                      `  <b>Canales:</b> <code>${row.platforms}</code>\n` +
+                      `  <b>Tipo:</b> <code>${row.accountType}</code>\n` +
+                      `  <b>Estado:</b> <code>${row.status}</code>\n` +
+                      `  <b>Fecha:</b> ${scheduledText}\n\n`;
+    });
+    db.close();
+    sendTelegramMessage(chatId, responseText);
+  } catch (err) {
+    sendTelegramMessage(chatId, `❌ Error al consultar la base de datos:\n<pre>${err.message}</pre>`);
   }
 }
 

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+.DS_Store
+.claude-flow/
+.swarm/
+scripts/leads_cache.json
+.mcp.json

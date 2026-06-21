@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rrssagente — Panel de Control Growth Marketing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/index.css">
+</head>
+<body>
+  <div class="glass-bg"></div>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="main-header">
+      <div class="logo-area">
+        <span class="logo-icon">▲</span>
+        <div>
+          <h1 id="app-title">rrssagente</h1>
+          <p id="app-subtitle">Suite Local de Growth Marketing</p>
+        </div>
+      </div>
+      <div class="status-badge" id="system-status">
+        <span class="status-dot green"></span> Conectado Localmente
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-nav">
+      <button class="nav-btn active" id="tab-btn-overview" onclick="switchTab('overview')">Overview KPIs</button>
+      <button class="nav-btn" id="tab-btn-schedule" onclick="switchTab('schedule')">Cola de Publicaciones</button>
+      <button class="nav-btn" id="tab-btn-ads" onclick="switchTab('ads')">Auditoría de Anuncios</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-container">
+      
+      <!-- VIEW: OVERVIEW -->
+      <section class="view-pane active" id="view-overview">
+        <div class="kpi-grid">
+          <!-- Card 1 -->
+          <div class="kpi-card" id="kpi-spend">
+            <span class="kpi-label">Presupuesto Diario</span>
+            <div class="kpi-value" id="val-daily-budget">$100.00 <span class="currency">USD</span></div>
+            <div class="kpi-desc">Límite establecido por el Guard</div>
+          </div>
+          <!-- Card 2 -->
+          <div class="kpi-card" id="kpi-cpa">
+            <span class="kpi-label">CPA Promedio (Pacientes)</span>
+            <div class="kpi-value" id="val-cpa">$6.66 <span class="currency">USD</span></div>
+            <div class="kpi-desc">Inversión por lead cualificado</div>
+          </div>
+          <!-- Card 3 -->
+          <div class="kpi-card" id="kpi-roas">
+            <span class="kpi-label">ROAS Estimado</span>
+            <div class="kpi-value" id="val-roas">4.3x</div>
+            <div class="kpi-desc">Retorno sobre inversión de pauta</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2col">
+          <div class="card glass-card">
+            <h3>Rendimiento Cruzado Orgánico vs Pago</h3>
+            <div class="chart-mock">
+              <div class="bar-chart">
+                <div class="bar-col">
+                  <div class="bar paid" style="height: 80%"></div>
+                  <span class="bar-label">Google Ads</span>
+                </div>
+                <div class="bar-col">
+                  <div class="bar paid" style="height: 60%"></div>
+                  <span class="bar-label">Meta Ads</span>
+                </div>
+                <div class="bar-col">
+                  <div class="bar organic" style="height: 35%"></div>
+                  <span class="bar-label">LinkedIn</span>
+                </div>
+                <div class="bar-col">
+                  <div class="bar organic" style="height: 25%"></div>
+                  <span class="bar-label">YouTube</span>
+                </div>
+                <div class="bar-col">
+                  <div class="bar organic" style="height: 15%"></div>
+                  <span class="bar-label">TikTok</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="dot paid-color"></span> Pauta de Pago</span>
+              <span class="legend-item"><span class="dot organic-color"></span> Contenido Orgánico</span>
+            </div>
+          </div>
+
+          <div class="card glass-card">
+            <h3>Información del Negocio Local</h3>
+            <div class="business-info">
+              <div class="info-row">
+                <span class="info-label">Sector:</span>
+                <span class="info-val">Clínica Médica / Salud</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Enfoque:</span>
+                <span class="info-val">Geo-targeting Barranquilla (Caribe)</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Ahorro Estimado:</span>
+                <span class="info-val highlighting">+$2,500 USD/mes vs Agencia</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Pacientes en ChatGPT:</span>
+                <span class="info-val">2 Recomendaciones registradas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: SCHEDULE -->
+      <section class="view-pane" id="view-schedule">
+        <div class="card glass-card">
+          <div class="card-header">
+            <h3>Cola de Publicaciones y Programaciones</h3>
+            <button class="refresh-btn" id="refresh-posts-btn" onclick="loadPosts()">Actualizar</button>
+          </div>
+          
+          <div class="posts-table-wrapper">
+            <table class="data-table" id="posts-table">
+              <thead>
+                <tr>
+                  <th>Contenido</th>
+                  <th>Plataformas</th>
+                  <th>Tipo Cuenta</th>
+                  <th>Estado</th>
+                  <th>Programado</th>
+                </tr>
+              </thead>
+              <tbody id="posts-list">
+                <tr class="placeholder-row">
+                  <td colspan="5">Cargando cola de publicaciones...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: ADS AUDIT -->
+      <section class="view-pane" id="view-ads">
+        <div class="alert-banner" id="budget-alert-banner" style="display: none;">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-text">
+            <strong>Alerta de Gasto Diario:</strong> Se ha alcanzado el límite de presupuesto programado.
+          </div>
+        </div>
+
+        <div class="dashboard-grid-2col">
+          <div class="card glass-card">
+            <h3>Registro de Modificaciones de Presupuesto (Log)</h3>
+            <div class="log-list-wrapper">
+              <ul class="log-list" id="budget-log-list">
+                <li class="placeholder-log">Cargando logs de presupuesto...</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card glass-card">
+            <h3>Campañas de Pago Activas</h3>
+            <div class="campaigns-list" id="campaigns-list">
+              <!-- Meta/Google campaigns dynamic content -->
+              <div class="campaign-item">
+                <div class="campaign-meta">
+                  <span class="platform-badge google">Google Ads</span>
+                  <h4>Dental Maps Geo-Localizado</h4>
+                </div>
+                <div class="campaign-stats">
+                  <div><span>Spend:</span> $110.50</div>
+                  <div><span>Clicks:</span> 290</div>
+                  <div><span>Convs:</span> 18</div>
+                </div>
+              </div>
+              <div class="campaign-item">
+                <div class="campaign-meta">
+                  <span class="platform-badge meta">Meta Ads</span>
+                  <h4>Ortodoncia Barranquilla Leads</h4>
+                </div>
+                <div class="campaign-stats">
+                  <div><span>Spend:</span> $154.20</div>
+                  <div><span>Clicks:</span> 340</div>
+                  <div><span>Convs:</span> 24</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <p>rrssagente v2.1.0 &copy; 2026. Operación Local Libre de Suscripciones. Diseñado para crecimiento orgánico y pauta local táctica.</p>
+    </footer>
+  </div>
+
+  <script src="/index.js"></script>
+</body>
+</html>

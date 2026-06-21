@@ -1,0 +1,7 @@
+{
+  "maxDailySpend": 100.0,
+  "maxSingleBudgetChange": 25.0,
+  "alertThresholdPercent": 80.0,
+  "requireConfirmation": true,
+  "cooldownMinutes": 60
+}

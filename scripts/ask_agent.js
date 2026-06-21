@@ -11,7 +11,6 @@ if (!prompt) {
 }
 
 // 2. Cargar variables de entorno del archivo .env
-let apiKey = process.env.GOOGLE_API_KEY;
 const envPath = path.join(__dirname, '..', '.env');
 if (fs.existsSync(envPath)) {
   const envConfig = fs.readFileSync(envPath, 'utf8');
@@ -23,12 +22,11 @@ if (fs.existsSync(envPath)) {
       if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
         value = value.substring(1, value.length - 1);
       }
-      if (key === 'GOOGLE_API_KEY') {
-        apiKey = value;
-      }
+      process.env[key] = value;
     }
   });
 }
+let apiKey = process.env.GOOGLE_API_KEY;
 
 // Fallback a claude-flow.config.json
 if (!apiKey) {
@@ -48,15 +46,46 @@ if (!apiKey) {
   process.exit(1);
 }
 
-// 3. Definir la ruta del Servidor MCP Local de forma relativa para compatibilidad macOS/VPS
-const mcpServerPath = path.join(__dirname, '..', '..', 'healthcare-mcp-public', 'server', 'index.js');
+// 3. Definición de rutas y mapeos de servidores MCP Locales
+const SERVER_PATHS = {
+  clinical: path.join(__dirname, '..', '..', 'healthcare-mcp-public', 'server', 'index.js'),
+  'social-manager': path.join(__dirname, '..', 'servers', 'social-manager', 'dist', 'index.js'),
+  'paid-ads': path.join(__dirname, '..', 'servers', 'paid-ads-expert', 'dist', 'index.js'),
+  analytics: path.join(__dirname, '..', 'servers', 'analytics-core', 'dist', 'index.js')
+};
+
+const TOOL_TO_SERVER = {
+  // Clínicos
+  pubmed_search: 'clinical',
+  fda_drug_lookup: 'clinical',
+  clinical_trials_search: 'clinical',
+  calculate_bmi: 'clinical',
+  lookup_icd_code: 'clinical',
+  // Marketing (social-manager)
+  draft_post: 'social-manager',
+  schedule_post: 'social-manager',
+  cancel_scheduled_post: 'social-manager',
+  list_scheduled_posts: 'social-manager',
+  list_drafts: 'social-manager',
+  publish_now: 'social-manager',
+  // Ads (paid-ads-expert)
+  get_campaigns_summary: 'paid-ads',
+  update_campaign_budget: 'paid-ads',
+  // Analytics (analytics-core)
+  get_organic_metrics: 'analytics',
+  get_cross_channel_report: 'analytics'
+};
 
 // 4. Instrucción de Sistema y Declaración de Herramientas para Gemini
-const systemInstruction = `Eres "Ruflo-Coecaribe", el asistente de inteligencia artificial clínico y técnico para COE Caribe IPS.
+const systemInstruction = `Eres "Ruflo-Coecaribe", el asistente híbrido de inteligencia artificial clínico y de crecimiento (growth marketing) para COE Caribe IPS.
 
-Tienes acceso a herramientas médicas reales mediante nuestro servidor MCP. Si el usuario te hace preguntas que requieren buscar estudios científicos, información oficial de fármacos, códigos de diagnóstico o realizar cálculos metabólicos (como IMC o tasa de filtración glomerular), DEBES invocar la herramienta correspondiente en lugar de adivinar o alucinar la información.
+Tienes acceso a herramientas médicas reales (búsqueda de PubMed, FDA, cálculos de salud) y a herramientas de marketing (redacción/programación de posts, analítica orgánica, auditoría de campañas de ads y control de presupuesto). 
 
-Una vez que obtengas la respuesta de la herramienta, redacta una respuesta muy completa, empática, y con referencias precisas en español. Si es un artículo científico de PubMed o medRxiv, detalla el título del estudio, los hallazgos principales y su relevancia para los tratamientos de medicina de precisión de COE Caribe IPS.`;
+Si el usuario te hace preguntas de salud o te pide crear/programar contenido, auditar presupuestos de anuncios o consultar métricas, DEBES invocar la herramienta correspondiente en lugar de alucinar o estimar los datos.
+
+Respuestas:
+- Para temas clínicos: Redacta respuestas completas, empáticas y con referencias precisas en español.
+- Para temas de marketing y redes: Presenta resúmenes claros, tablas formateadas, alertas presupuestarias si detectas desvíos, y asegúrate de aislar las cuentas (personal o corporativo/company) filtrando por el accountType correspondiente.`;
 
 // Esquemas de herramientas compatibles con Gemini API
 const toolsList = [{
@@ -151,6 +180,114 @@ const toolsList = [{
           }
         }
       }
+    },
+    {
+      name: "draft_post",
+      description: "Crea un nuevo post en estado borrador en la base de datos local para redes sociales.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          content: { type: "STRING", description: "Contenido de texto del post" },
+          platforms: {
+            type: "ARRAY",
+            items: { type: "STRING" },
+            description: "Plataformas destino del post (linkedin, x, tiktok, youtube)"
+          },
+          accountType: {
+            type: "STRING",
+            description: "Tipo de cuenta para aislamiento: 'personal' o 'company'"
+          }
+        },
+        required: ["content", "platforms", "accountType"]
+      }
+    },
+    {
+      name: "schedule_post",
+      description: "Programa un post borrador existente para publicarse en una fecha y hora futura.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          postId: { type: "STRING", description: "ID del post borrador" },
+          publishAt: { type: "STRING", description: "Fecha y hora en formato ISO 8601, ej: 2026-06-22T10:00:00-05:00" }
+        },
+        required: ["postId", "publishAt"]
+      }
+    },
+    {
+      name: "cancel_scheduled_post",
+      description: "Cancela la programación de un post y lo devuelve a estado borrador.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          postId: { type: "STRING", description: "ID del post a cancelar" }
+        },
+        required: ["postId"]
+      }
+    },
+    {
+      name: "list_scheduled_posts",
+      description: "Lista los posts que se encuentran programados para publicarse a futuro.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          accountType: { type: "STRING", description: "Filtrar por tipo de cuenta: 'personal' o 'company'" }
+        },
+        required: ["accountType"]
+      }
+    },
+    {
+      name: "get_campaigns_summary",
+      description: "Recupera un resumen consolidado de las campañas publicitarias activas en Meta Ads y Google Ads.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          adPlatform: { type: "STRING", description: "Opcional. Plataforma de pauta específica: 'meta' o 'google'" },
+          metaAccountId: { type: "STRING", description: "Requerido para Meta Ads. Formato: act_XXXXXXX" },
+          googleCustomerId: { type: "STRING", description: "Requerido para Google Ads. Formato: XXX-XXX-XXXX" }
+        }
+      }
+    },
+    {
+      name: "update_campaign_budget",
+      description: "Modifica el presupuesto de una campaña publicitaria sujeta a las reglas del Budget Guard.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          platform: { type: "STRING", description: "Plataforma objetivo: 'meta_ads' o 'google_ads'" },
+          campaignId: { type: "STRING", description: "ID de la campaña publicitaria" },
+          oldBudget: { type: "NUMBER", description: "Presupuesto anterior en USD" },
+          newBudget: { type: "NUMBER", description: "Nuevo presupuesto propuesto en USD" },
+          confirmationCode: { type: "STRING", description: "Código de confirmación de seguridad obligatorio: 'CONFIRMAR'" }
+        },
+        required: ["platform", "campaignId", "oldBudget", "newBudget", "confirmationCode"]
+      }
+    },
+    {
+      name: "get_organic_metrics",
+      description: "Consulta las métricas orgánicas históricas (likes, impresiones, views) del caché local.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          platform: { type: "STRING", description: "Opcional. 'linkedin', 'x', 'tiktok' o 'youtube'" },
+          accountType: { type: "STRING", description: "Contexto de cuenta: 'personal' o 'company'" },
+          startDate: { type: "STRING", description: "Fecha inicio YYYY-MM-DD" },
+          endDate: { type: "STRING", description: "Fecha fin YYYY-MM-DD" }
+        },
+        required: ["accountType", "startDate", "endDate"]
+      }
+    },
+    {
+      name: "get_cross_channel_report",
+      description: "Unifica métricas orgánicas y campañas pagadas (Meta Ads y Google Ads) calculando ROI, CTR, CPM, CPA y Video View Rate unificados.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          accountType: { type: "STRING", description: "Contexto de cuenta: 'personal' o 'company'" },
+          startDate: { type: "STRING", description: "Fecha inicio YYYY-MM-DD" },
+          endDate: { type: "STRING", description: "Fecha fin YYYY-MM-DD" }
+        },
+        required: ["accountType", "startDate", "endDate"]
+      }
     }
   ]
 }];
@@ -158,11 +295,14 @@ const toolsList = [{
 // 5. Ejecutar una herramienta en el servidor MCP local via stdio (JSON-RPC)
 function runMcpTool(toolName, toolArgs) {
   return new Promise((resolve, reject) => {
-    if (!fs.existsSync(mcpServerPath)) {
-      return reject(new Error(`Servidor MCP no encontrado en: ${mcpServerPath}. Asegúrate de clonar el repositorio en la VPS.`));
+    const serverKey = TOOL_TO_SERVER[toolName] || 'clinical';
+    const serverPath = SERVER_PATHS[serverKey];
+
+    if (!serverPath || !fs.existsSync(serverPath)) {
+      return reject(new Error(`Servidor MCP (${serverKey}) no encontrado en: ${serverPath}. Asegúrate de clonar el repositorio en la VPS y compilarlo.`));
     }
 
-    const mcp = spawn('node', [mcpServerPath]);
+    const mcp = spawn('node', [serverPath]);
     let buffer = '';
     let resolved = false;
 
@@ -308,11 +448,8 @@ async function runAgent() {
         // Ejecutar herramienta localmente en el servidor MCP
         const toolResultText = await runMcpTool(toolName, toolArgs);
         
-        // Agregar la llamada de la función y la respuesta de la herramienta al historial
-        contents.push({
-          role: 'model',
-          parts: [{ functionCall: { name: toolName, args: toolArgs } }]
-        });
+        // Agregar la llamada de la función original y la respuesta de la herramienta al historial
+        contents.push(candidate.content);
         
         contents.push({
           role: 'user',
@@ -335,8 +472,12 @@ async function runAgent() {
             if (finalData && !finalData.error) {
               finalSuccess = true;
               break;
+            } else if (finalData && finalData.error) {
+              console.error(`⚠️ Error en ronda 2 con modelo ${model}:`, finalData.error.message);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error(`⚠️ Excepción en ronda 2 con modelo ${model}:`, e.message);
+          }
         }
 
         const finalCandidate = finalData?.candidates?.[0];
